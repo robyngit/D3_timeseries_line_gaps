@@ -31,7 +31,7 @@
 
 #metric-modal .metric-chart path.line {
 	fill: none;
-	stroke: white; /* default, changed in each theme */
+	stroke: #00AA8D; /* default, changed in each theme */
 	stroke-width: 1.5px;
 	clip-path: url(#clip);
 }
@@ -171,8 +171,6 @@ var margin	= {top: 20, right: 30, bottom: 100, left: 20},
 var margin_context = {top: 320, right: 30, bottom: 20, left: 20},
     height_context = optheight - margin_context.top - margin_context.bottom;
 
-
-
 /*
 * ========================================================================
 *  x and y coordinates
@@ -188,11 +186,18 @@ var mindate = dataXrange[0],  // use the range of the data
     maxdate = dataXrange[1];
 
 var DateFormat	  =  d3.time.format("%b %Y");
+
 var dynamicDateFormat = timeFormat([
-    [DateFormat, function() { return true; }],
-    [DateFormat, function(d) { return d.getMonth(); }],
+    [d3.time.format("%Y"), function() { return true; }],// <-- how to display when Jan 1 YYYY
+    [d3.time.format("%b %Y"), function(d) { return d.getMonth(); }],
     [function(){return "";}, function(d) { return d.getDate() != 1; }]
 ]);
+
+// var dynamicDateFormat =  timeFormat([
+//     [d3.time.format("%Y"), function() { return true; }],
+//     [d3.time.format("%b"), function(d) { return d.getMonth(); }],
+//     [function(){return "";}, function(d) { return d.getDate() != 1; }]
+// ]);
 
 /* === Focus Chart === */
 
@@ -231,7 +236,7 @@ var xAxis_context = d3.svg.axis()
     .scale(x2)
     .orient("bottom")
     .ticks(customTickFunction)
-    .tickFormat(DateFormat);
+    .tickFormat(dynamicDateFormat);
 
 /*
 * ========================================================================
@@ -478,7 +483,7 @@ function customTickFunction(t0, t1, dt)  {
         date.setMonth(date.getMonth() + offset);
     }
 
-    var time = d3.time.month.ceil(t0), times = [], monthFactors = [2,3,4,6];
+    var time = d3.time.month.ceil(t0), times = [], monthFactors = [1,3,4,12];
 
     while (time < t1) times.push(new Date(+time)), step(time, 1);
     var timesCopy = times;
