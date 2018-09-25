@@ -143,23 +143,31 @@ var optheight       = 370;
 * ========================================================================
 */
 
-// Combine the months and count array to make "data"
+
+// to find missing data: get a sequence of all months between the min and max dates in the data.
+
+// change dates to milliseconds
+metricMonths.forEach(function(part, index, theArray) {
+  theArray[index] = d3.time.format("%Y-%m").parse(part).getTime();
+});
+
+// get a list of all months in the range of data
+var monthArray = d3.time.scale()
+                .domain(d3.extent(metricMonths))
+                .ticks(d3.time.months, 1);
+
+// check if there is data for each month in monthArray, if so append count, otherwise append null
 var dataset = [];
-for(var i=0; i<metricCount.length; i++){
-    var obj = {count: metricCount[i], month: metricMonths[i]};
-    dataset.push(obj);
+for(var i=0; i<monthArray.length; i++){
+
+	var n = metricMonths.indexOf(monthArray[i].getTime());
+	if (n>-1) {
+		var count = metricCount[n];
+	} else {
+		var count = null;
+	}
+	dataset.push({count: count, month: monthArray[i]});
 }
-
-// format month as a date
-dataset.forEach(function(d) {
-    d.month = d3.time.format("%Y-%m").parse(d.month);
-});
-
-// sort dataset by month
-dataset.sort(function(x, y){
-   return d3.ascending(x.month, y.month);
-});
-
 
 /*
 * ========================================================================
@@ -199,12 +207,6 @@ var dynamicDateFormat = timeFormat([
     [d3.time.format("%b %Y"), function(d) { return d.getMonth(); }],
     [function(){return "";}, function(d) { return d.getDate() != 1; }]
 ]);
-
-// var dynamicDateFormat =  timeFormat([
-//     [d3.time.format("%Y"), function() { return true; }],
-//     [d3.time.format("%b"), function(d) { return d.getMonth(); }],
-//     [function(){return "";}, function(d) { return d.getDate() != 1; }]
-// ]);
 
 /* === Focus Chart === */
 
@@ -254,24 +256,30 @@ var xAxis_context = d3.svg.axis()
 /* === Focus Chart === */
 
 var line = d3.svg.line()
+	.defined(function(d) { return d.count !== null; })
 	.x(function(d) { return x(d.month); })
 	.y(function(d) { return y(d.count); });
 
 var area = d3.svg.area()
+	.defined(line.defined())
   .x(function(d) { return x(d.month); })
   .y0((height))
   .y1(function(d) { return y(d.count); });
 
 /* === Context Chart === */
 
+var line_context = d3.svg.line()
+	.defined(function(d) { return d.count !== null; }) 
+    .x(function(d) { return x2(d.month); })
+    .y(function(d) { return y2(d.count); });
+
 var area_context = d3.svg.area()
+	.defined(line_context.defined())
     .x(function(d) { return x2(d.month); })
     .y0((height_context))
     .y1(function(d) { return y2(d.count); });
 
-var line_context = d3.svg.line()
-    .x(function(d) { return x2(d.month); })
-    .y(function(d) { return y2(d.count); });
+
 
 /*
 * ========================================================================

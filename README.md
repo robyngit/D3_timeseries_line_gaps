@@ -1,8 +1,9 @@
-## D3 timeseries chart
+## D3 timeseries chart showing gaps in data
+### Option A
 
-- the `D3` chart currently displayed on metacat UI
-- issue: the line and area shapes interpolate across missing data
+- a potential `D3` chart to use on metacat UI
 - features:
+    - gaps in data shown with dotted line
     - mini 'brush' chart shows the context of the data in focus in the main chart
     - x-axis zooming and panning is limited to the range of available data
     - y-axis resizes automatically to match the maximum y-value of the data in focus
