@@ -36,6 +36,7 @@
 	fill: white;
 }
 
+/* complete data line */
 #metric-modal .metric-chart path.line {
 	fill: none;
 	stroke: #00AA8D; /* default, changed in each theme */
@@ -43,10 +44,36 @@
 	clip-path: url(#clip);
 }
 
+/* complete data area */
 #metric-modal .metric-chart path.area {
 	fill: #00AA8D; /* CB default, changed in each theme */
 	opacity: 0.6;
 	clip-path: url(#clip);
+	cursor: move; /* fallback if grab cursor is unsupported */
+	cursor: grab;
+}
+
+/*missing data line */
+#metric-modal .metric-chart path.line_missing {
+	fill: none;
+	stroke: #00AA8D; /* default, changed in each theme */
+	stroke-width: 1.5px;
+	stroke-dasharray: 1.5px 2px;
+	clip-path: url(#clip);
+}
+/*missing data area */
+#metric-modal .metric-chart path.area_missing {
+	fill: #00AA8D; /* CB default, changed in each theme */
+	opacity: 0.15;
+	clip-path: url(#clip);
+	cursor: move; /* fallback if grab cursor is unsupported */
+	cursor: grab;
+}
+
+#metric-modal .metric-chart path.area_missing:active,
+#metric-modal .metric-chart path.area:active {
+	cursor: move; /* fallback if grab cursor is unsupported */
+	cursor: grabbing;
 }
 
 #metric-modal .metric-chart .axis {
@@ -88,10 +115,17 @@
 }
 
 #metric-modal .metric-chart rect.pane {
-	cursor: move;
-	fill: none;
+	cursor: move; /* fallback if grab cursor is unsupported */
+	cursor: grab;
+	fill: white;
 	pointer-events: all;
 }
+
+#metric-modal .metric-chart rect.pane:active, {
+	cursor: move; /* fallback if grab cursor is unsupported */
+	cursor: grabbing;
+}
+
 /* brush handles  */
 #metric-modal .metric-chart .resize .handle {
 	fill: #555;
@@ -168,6 +202,9 @@ for(var i=0; i<monthArray.length; i++){
 	}
 	dataset.push({count: count, month: monthArray[i]});
 }
+
+// a dataset without the null values is also needed to draw the missing data lines/areas
+var dataset_no_null = dataset.filter(function(d) { return d.count !== null; });
 
 /*
 * ========================================================================
@@ -262,14 +299,24 @@ var line = d3.svg.line()
 
 var area = d3.svg.area()
 	.defined(line.defined())
-  .x(function(d) { return x(d.month); })
-  .y0((height))
-  .y1(function(d) { return y(d.count); });
+	.x(function(d) { return x(d.month); })
+	.y0((height))
+	.y1(function(d) { return y(d.count); });
+
+var line_missing = d3.svg.line()
+	.x(function(d) { return x(d.month); })
+	.y(function(d) { return y(d.count); });
+
+var area_missing = d3.svg.area()
+	.x(function(d) { return x(d.month); })
+	.y0((height))
+	.y1(function(d) { return y(d.count); });
+
 
 /* === Context Chart === */
 
 var line_context = d3.svg.line()
-	.defined(function(d) { return d.count !== null; }) 
+	.defined(function(d) { return d.count !== null; })
     .x(function(d) { return x2(d.month); })
     .y(function(d) { return y2(d.count); });
 
@@ -279,7 +326,14 @@ var area_context = d3.svg.area()
     .y0((height_context))
     .y1(function(d) { return y2(d.count); });
 
+var line_context_missing = d3.svg.line()
+	.x(function(d) { return x2(d.month); })
+	.y(function(d) { return y2(d.count); });
 
+var area_context_missing = d3.svg.area()
+	.x(function(d) { return x2(d.month); })
+	.y0((height_context))
+	.y1(function(d) { return y2(d.count); });
 
 /*
 * ========================================================================
@@ -307,7 +361,7 @@ var zoom = d3.behavior.zoom()
 var vis = d3.select("#metric-modal").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
-  	.attr("class", "metric-chart"); // CB -- "line-chart" -- CB //
+  	.attr("class", "metric-chart");// CB -- "line-chart" -- CB //
 
 vis.append("defs").append("clipPath")
     .attr("id", "clip")
@@ -315,6 +369,12 @@ vis.append("defs").append("clipPath")
     .attr("width", width)
     .attr("height", height);
     // clipPath is used to keep line and area from moving outside of plot area when user zooms/scrolls/brushes
+
+var rect = vis.append("svg:rect")
+    .attr("class", "pane")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
 var context = vis.append("g")
     .attr("class", "context")
@@ -324,13 +384,8 @@ var focus = vis.append("g")
     .attr("class", "focus")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-var rect = vis.append("svg:rect")
-    .attr("class", "pane")
-    .attr("width", width)
-    .attr("height", height)
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-    .call(zoom)
-    .call(draw);
+rect.call(zoom)
+	.call(draw);
 
 // === current date range text & zoom buttons === //
 
@@ -395,27 +450,57 @@ focus.append("g")
     .call(yAxis)
    	.attr("transform", "translate(" + (width) + ", 0)");
 
+// missing data area
+focus.append("path")
+    .datum(dataset_no_null)
+    .attr("class", "area_missing")
+    .attr("d", area_missing)
+	.call(zoom)
+	.call(draw);
+
+// complete data area
 focus.append("path")
     .datum(dataset)
     .attr("class", "area")
-    .attr("d", area);
+    .attr("d", area)
+	.call(zoom)
+	.call(draw);
 
+// x-axis
 focus.append("g")
     .attr("class", "x axis")
     .attr("transform", "translate(0," + height + ")")
     .call(xAxis);
 
+// missing data line
+focus.append("path")
+    .datum(dataset_no_null)
+    .attr("class", "line_missing")
+    .attr("d", line_missing);
+
+// complete data line
 focus.append("path")
     .datum(dataset)
     .attr("class", "line")
     .attr("d", line);
 
+
 /* === context chart === */
+
+context.append("path")
+    .datum(dataset_no_null)
+    .attr("class", "area_missing")
+    .attr("d", area_context_missing);
 
 context.append("path")
     .datum(dataset)
     .attr("class", "area")
     .attr("d", area_context);
+
+context.append("path")
+    .datum(dataset_no_null)
+    .attr("class", "line_missing")
+    .attr("d", line_context_missing);
 
 context.append("path")
     .datum(dataset)
@@ -514,30 +599,32 @@ function customTickFunction(t0, t1, dt)  {
 // === brush and zoom functions ===
 
 function brushed() {
-
     x.domain(brush.empty() ? x2.domain() : brush.extent());
-    focus.select(".area").attr("d", area);
-    focus.select(".line").attr("d", line);
-    focus.select(".x.axis").call(xAxis);
+	common_behaviour();
     // Reset zoom scale's domain
     zoom.x(x);
     updateDisplayDates();
     setYdomain();
 
-};
+}
 
 function draw() {
     setYdomain();
-    focus.select(".area").attr("d", area);
-    focus.select(".line").attr("d", line);
-    focus.select(".x.axis").call(xAxis);
-    //focus.select(".y.axis").call(yAxis);
+    common_behaviour();
     // Force changing brush range
     brush.extent(x.domain());
     vis.select(".brush").call(brush);
     // and update the text showing range of dates.
     updateDisplayDates();
-};
+}
+
+function common_behaviour() {
+	focus.select(".area").attr("d", area);
+    focus.select(".line").attr("d", line);
+	focus.select(".area_missing").attr("d", area_missing);
+    focus.select(".line_missing").attr("d", line_missing);
+	focus.select(".x.axis").call(xAxis);
+}
 
 function brushend() {
 // when brush stops moving:
@@ -596,28 +683,28 @@ function setYdomain(){
     var bisectDate = d3.bisector(function(d) { return d.month; }).right;
 
     // get the y value of the line at the left edge of view port:
-    var iL = bisectDate(dataset, xleft);
+    var iL = bisectDate(dataset_no_null, xleft);
 
-    if (dataset[iL] !== undefined && dataset[iL-1] !== undefined) {
+    if (dataset_no_null[iL] !== undefined && dataset_no_null[iL-1] !== undefined) {
 
-        var left_dateBefore = dataset[iL-1].month,
-            left_dateAfter = dataset[iL].month;
+        var left_dateBefore = dataset_no_null[iL-1].month,
+            left_dateAfter = dataset_no_null[iL].month;
 
-        var intfun = d3.interpolateNumber(dataset[iL-1].count, dataset[iL].count);
+        var intfun = d3.interpolateNumber(dataset_no_null[iL-1].count, dataset_no_null[iL].count);
         var yleft = intfun((xleft-left_dateBefore)/(left_dateAfter-left_dateBefore));
     } else {
         var yleft = 0;
     }
 
     // get the x value of the line at the right edge of view port:
-    var iR = bisectDate(dataset, xright);
+    var iR = bisectDate(dataset_no_null, xright);
 
-    if (dataset[iR] !== undefined && dataset[iR-1] !== undefined) {
+    if (dataset_no_null[iR] !== undefined && dataset_no_null[iR-1] !== undefined) {
 
-        var right_dateBefore = dataset[iR-1].month,
-            right_dateAfter = dataset[iR].month;
+        var right_dateBefore = dataset_no_null[iR-1].month,
+            right_dateAfter = dataset_no_null[iR].month;
 
-        var intfun = d3.interpolateNumber(dataset[iR-1].count, dataset[iR].count);
+        var intfun = d3.interpolateNumber(dataset_no_null[iR-1].count, dataset_no_null[iR].count);
         var yright = intfun((xright-right_dateBefore)/(right_dateAfter-right_dateBefore));
     } else {
         var yright = 0;

@@ -2,6 +2,15 @@
 ### Option A
 
 - a potential `D3` chart to use on metacat UI
+
+**PROS:**
+- missing data clearly differentiated.
+
+**CONS:**
+- data points with missing data the month before and after are 'hidden' (e.g. May 2014).
+
+
+
 - features:
     - gaps in data shown with dotted line
     - mini 'brush' chart shows the context of the data in focus in the main chart
